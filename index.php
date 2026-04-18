@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Planner Login</title>
+    <title>Monthly Budget Planner Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -54,22 +54,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="auth-layout">
         <section class="auth-panel auth-intro">
             <div class="brand-block">
-                <div class="brand-mark">EP</div>
+                <div class="brand-mark">MB</div>
                 <div>
-                    <p class="eyebrow">Expense Planner</p>
-                    <h1>Track money without confusion.</h1>
+                    <p class="eyebrow">Monthly Budget Planner</p>
+                    <h1>Plan organization spending with clarity.</h1>
                 </div>
             </div>
 
             <p class="auth-copy">
-                A simple expense planner for college projects. Users log in, view their dashboard,
-                check budgets, and review recent transactions in one place.
+                A simple budget planning system for small organizations and firms to manage
+                monthly budgets, weekly budgets, income, and expenses in one place.
             </p>
 
             <div class="auth-points">
                 <div class="info-card">
                     <strong>Simple login flow</strong>
-                    <span>User logs in first, then enters the app dashboard.</span>
+                    <span>Organization logs in first, then enters the planning dashboard.</span>
                 </div>
                 <div class="info-card">
                     <strong>Easy database</strong>
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="demo-box">
                     <strong>Sample login</strong>
-                    <p>Email: <code>admin@expenseplanner.com</code></p>
+                    <p>Email: <code>admin@budgetplanner.com</code></p>
                     <p>Password: <code>admin123</code></p>
                 </div>
             </div>

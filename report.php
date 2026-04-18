@@ -77,6 +77,30 @@ while ($row = mysqli_fetch_assoc($categoryResult)) {
     }
 }
 
+// Weekly budgets that start in selected month.
+// Only expenses selected with the weekly budget are counted in its spent amount.
+$weeklyRows = [];
+$weeklySql = "SELECT
+        weekly_budgets.title,
+        weekly_budgets.week_start,
+        weekly_budgets.week_end,
+        weekly_budgets.weekly_limit,
+        SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END) AS spent
+    FROM weekly_budgets
+    LEFT JOIN transactions
+        ON transactions.weekly_budget_id = weekly_budgets.id
+        AND transactions.user_id = weekly_budgets.user_id
+        AND transactions.transaction_date BETWEEN weekly_budgets.week_start AND weekly_budgets.week_end
+    WHERE weekly_budgets.user_id = $userId
+    AND MONTH(weekly_budgets.week_start) = $selectedMonth
+    AND YEAR(weekly_budgets.week_start) = $selectedYear
+    GROUP BY weekly_budgets.id, weekly_budgets.title, weekly_budgets.week_start, weekly_budgets.week_end, weekly_budgets.weekly_limit
+    ORDER BY weekly_budgets.week_start ASC";
+$weeklyResult = mysqli_query($conn, $weeklySql);
+while ($row = mysqli_fetch_assoc($weeklyResult)) {
+    $weeklyRows[] = $row;
+}
+
 function formatRupees($amount)
 {
     return 'Rs ' . number_format((float) $amount, 2);
@@ -97,24 +121,23 @@ function formatRupees($amount)
     <div class="page-shell">
         <aside class="sidebar">
             <div class="brand-block">
-                <div class="brand-mark">EP</div>
+                <div class="brand-mark">MB</div>
                 <div>
-                    <p class="eyebrow">Expense Planner</p>
+                    <p class="eyebrow">Monthly Budget Planner</p>
                     <h1>Reports</h1>
                 </div>
             </div>
 
             <nav class="nav-links">
                 <a href="dashboard.php">Dashboard</a>
+                <a href="add_transaction.php">Add Transaction</a>
+                <a href="budgets.php">Monthly Budgets</a>
+                <a href="weekly_budgets.php">Weekly Budgets</a>
                 <a class="active" href="report.php">Monthly Report</a>
-                <a href="dashboard.php#add-transaction">Add Entry</a>
-                <a href="dashboard.php#transactions">Transactions</a>
-                <a href="dashboard.php#budgets">Budgets</a>
-                <a href="dashboard.php#categories">Categories</a>
             </nav>
 
             <section class="premium-card">
-                <p class="eyebrow">Report User</p>
+                <p class="eyebrow">Organization Account</p>
                 <h2><?= htmlspecialchars($user['full_name'] ?? $_SESSION['user_name']) ?></h2>
                 <p><?= htmlspecialchars($_SESSION['user_email']) ?></p>
                 <a class="button-link" href="logout.php">Logout</a>
@@ -142,11 +165,11 @@ function formatRupees($amount)
             <section class="report-receipt">
                 <div class="receipt-top">
                     <div>
-                        <p class="eyebrow">Expense Planner</p>
+                        <p class="eyebrow">Monthly Budget Planner</p>
                         <h2>Monthly Report Receipt</h2>
                     </div>
                     <div class="receipt-top-meta">
-                        <p><strong>User:</strong> <?= htmlspecialchars($user['full_name'] ?? $_SESSION['user_name']) ?></p>
+                        <p><strong>Organization:</strong> <?= htmlspecialchars($user['full_name'] ?? $_SESSION['user_name']) ?></p>
                         <p><strong>Month:</strong> <?= htmlspecialchars($reportMonthName . ' ' . $selectedYear) ?></p>
                         <p><strong>Generated:</strong> <?= htmlspecialchars($generatedDate) ?></p>
                     </div>
@@ -216,6 +239,37 @@ function formatRupees($amount)
                                 </div>
                                 <div class="receipt-line-values">
                                     <span><?= htmlspecialchars(formatRupees($category['total_spent'])) ?></span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <div class="receipt-section">
+                    <div class="receipt-section-header">
+                        <h3>Weekly Budget Summary</h3>
+                    </div>
+
+                    <?php if (count($weeklyRows) === 0): ?>
+                        <p class="receipt-empty">No weekly budget found for this month.</p>
+                    <?php else: ?>
+                        <?php foreach ($weeklyRows as $weekly): ?>
+                            <?php
+                            $weeklyLimit = (float) $weekly['weekly_limit'];
+                            $weeklySpent = (float) $weekly['spent'];
+                            $weeklyLeft = $weeklyLimit - $weeklySpent;
+                            $weeklyStatus = $weeklySpent > $weeklyLimit ? 'Exceeded' : 'On Track';
+                            ?>
+                            <div class="receipt-line">
+                                <div>
+                                    <strong><?= htmlspecialchars($weekly['title']) ?></strong>
+                                    <span><?= htmlspecialchars(date('d M Y', strtotime($weekly['week_start']))) ?> to <?= htmlspecialchars(date('d M Y', strtotime($weekly['week_end']))) ?></span>
+                                </div>
+                                <div class="receipt-line-values">
+                                    <span>Limit: <?= htmlspecialchars(formatRupees($weeklyLimit)) ?></span>
+                                    <span>Spent: <?= htmlspecialchars(formatRupees($weeklySpent)) ?></span>
+                                    <span>Left: <?= htmlspecialchars(formatRupees($weeklyLeft)) ?></span>
+                                    <span class="<?= $weeklySpent > $weeklyLimit ? 'status-exceeded' : 'status-within' ?>"><?= htmlspecialchars($weeklyStatus) ?></span>
                                 </div>
                             </div>
                         <?php endforeach; ?>

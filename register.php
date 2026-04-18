@@ -13,6 +13,7 @@ $fullName = '';
 $email = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // In the database, full_name is used to store organization name.
     $fullName = trim($_POST['full_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -60,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register User</title>
+    <title>Register Organization</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -70,22 +71,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="auth-layout">
         <section class="auth-panel auth-intro">
             <div class="brand-block">
-                <div class="brand-mark">EP</div>
+                <div class="brand-mark">MB</div>
                 <div>
-                    <p class="eyebrow">Expense Planner</p>
-                    <h1>Create a new user account.</h1>
+                    <p class="eyebrow">Monthly Budget Planner</p>
+                    <h1>Create a new organization account.</h1>
                 </div>
             </div>
 
             <p class="auth-copy">
-                Register a new user, then start using the dashboard for income, expenses,
-                categories, and budgets.
+                Register a small organization or firm, then start managing monthly budgets,
+                weekly budgets, income, and expenses.
             </p>
 
             <div class="auth-points">
                 <div class="info-card">
                     <strong>Easy registration</strong>
-                    <span>Add name, email, and password to create a new account.</span>
+                    <span>Add organization name, email, and password to create a new account.</span>
                 </div>
                 <div class="info-card">
                     <strong>Login after register</strong>
@@ -98,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-card">
                 <p class="eyebrow">Register</p>
                 <h2>Create account</h2>
-                <p class="form-copy">Fill the details below to create a new user.</p>
+                <p class="form-copy">Fill the details below to create a new organization account.</p>
 
                 <?php if ($error !== ''): ?>
                     <div class="alert error"><?= htmlspecialchars($error) ?></div>
@@ -106,8 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form method="post" class="auth-form">
                     <label>
-                        <span>Full Name</span>
-                        <input type="text" name="full_name" value="<?= htmlspecialchars($fullName) ?>" placeholder="Enter full name" required>
+                        <span>Organization Name</span>
+                        <input type="text" name="full_name" value="<?= htmlspecialchars($fullName) ?>" placeholder="Enter organization name" required>
                     </label>
 
                     <label>
@@ -125,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="password" name="confirm_password" placeholder="Confirm password" required>
                     </label>
 
-                    <button type="submit">Register User</button>
+                    <button type="submit">Register Organization</button>
                 </form>
 
                 <p class="switch-text">

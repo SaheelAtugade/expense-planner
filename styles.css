@@ -412,6 +412,12 @@ body::before {
     font-weight: 700;
 }
 
+.status-within {
+    color: var(--positive);
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
 .category-item,
 .mini-stat {
     display: flex;

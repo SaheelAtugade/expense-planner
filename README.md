@@ -1,6 +1,6 @@
-# Expense Planner
+# Monthly Budget Planner for Small Organizations and Firms
 
-💙 A modern PHP + MySQL expense tracking app for managing income, expenses, budgets, and monthly reports.
+💙 A modern PHP + MySQL budget planning app for managing monthly budgets, weekly budgets, income, expenses, and reports.
 
 ## ✨ Highlights
 
@@ -8,17 +8,19 @@
 - 💸 Add income and expense entries
 - 🏷️ Create categories and budgets on the go
 - 📅 Monthly dashboard tracking
+- 🗓️ Independent weekly budget planning
 - ⚠️ Budget limit warning system
 - 🧾 Receipt-style monthly report
 - 📊 Month-wise report filtering
 
 ## 🎯 What It Does
 
-Expense Planner helps users:
+Monthly Budget Planner helps small organizations and firms:
 
 - track monthly income
 - record daily expenses
-- organize spending under budgets
+- organize spending under monthly budgets
+- monitor weekly budget limits
 - monitor budget usage
 - review monthly summaries in a clean report format
 
@@ -128,6 +130,7 @@ expense-planner/
 - Clean blue dashboard theme
 - Simple and readable PHP structure
 - Budget-first expense tracking
+- Independent weekly budget tracking
 - Monthly reporting without deleting history
 - Easy flow for adding categories and budgets
 
@@ -141,4 +144,4 @@ expense-planner/
 
 ## 📌 Summary
 
-Expense Planner is a clean and practical web app for tracking money month by month, organizing expenses under budgets, and generating simple monthly reports in a modern interface.
+Monthly Budget Planner is a clean and practical web app for small organizations and firms to track money month by month, plan weekly spending, organize expenses under budgets, and generate simple reports in a modern interface.
