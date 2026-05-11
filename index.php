@@ -72,12 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span>Organization logs in first, then enters the planning dashboard.</span>
                 </div>
                 <div class="info-card">
-                    <strong>Easy database</strong>
-                    <span>Users, categories, budgets, and transactions only.</span>
+                    <strong>Data Security </strong>
+                    <span>All data is encrypted and securely stored.</span>
                 </div>
                 <div class="info-card">
-                    <strong>Ready for demo</strong>
-                    <span>Import the SQL file into phpMyAdmin and use the sample accounts.</span>
+                    <strong>Monthly Report</strong>
+                    <span>Generate detailed reports for each month to track your financial performance.</span>
                 </div>
             </div>
         </section>

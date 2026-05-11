@@ -7,7 +7,7 @@ $userId = (int) $_SESSION['user_id'];
 $currentMonth = date('m');
 $currentYear = date('Y');
 $currentMonthName = date('F');
-$today = date('Y-m-d');
+$today = date('Y-m-d'); 
 
 // Get user details.
 $userSql = "SELECT full_name FROM users WHERE id = $userId";
@@ -268,10 +268,10 @@ function formatRupees($amount)
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="mini-stat">
+                    <!-- <div class="mini-stat">
                         <p>Connected to database</p>
                         <strong>Login and dashboard are working together</strong>
-                    </div>
+                    </div> -->
                 </article>
 
                 <article class="panel panel-wide" id="weekly-budgets">
