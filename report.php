@@ -15,10 +15,23 @@ $selectedYear = (int) substr($selectedMonthValue, 0, 4);
 $selectedMonth = (int) substr($selectedMonthValue, 5, 2);
 $reportMonthName = date('F', strtotime($selectedMonthValue . '-01'));
 $generatedDate = date('d M Y');
+$reportStartDate = $selectedMonthValue . '-01';
+$reportEndDate = date('Y-m-t', strtotime($reportStartDate));
 
 $userSql = "SELECT full_name FROM users WHERE id = $userId";
 $userResult = mysqli_query($conn, $userSql);
 $user = mysqli_fetch_assoc($userResult);
+
+// Carry forward old balance from months before selected month.
+$openingSql = "SELECT
+        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS old_income,
+        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS old_expense
+    FROM transactions
+    WHERE user_id = $userId
+    AND transaction_date < '$reportStartDate'";
+$openingResult = mysqli_query($conn, $openingSql);
+$openingRow = mysqli_fetch_assoc($openingResult);
+$openingBalance = (float) ($openingRow['old_income'] ?? 0) - (float) ($openingRow['old_expense'] ?? 0);
 
 // Monthly total for selected month.
 $summarySql = "SELECT
@@ -34,20 +47,26 @@ $summary = mysqli_fetch_assoc($summaryResult);
 
 $totalIncome = (float) ($summary['total_income'] ?? 0);
 $totalExpense = (float) ($summary['total_expense'] ?? 0);
-$balance = $totalIncome - $totalExpense;
+$monthBalance = $totalIncome - $totalExpense;
+$closingBalance = $openingBalance + $monthBalance;
 $totalEntries = (int) ($summary['total_entries'] ?? 0);
 
 // Budget summary for selected month.
 $budgetRows = [];
 $budgetSql = "SELECT
+        budgets.id,
         budgets.title,
         budgets.monthly_limit,
-        SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END) AS spent
+        SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END) AS spent,
+        GROUP_CONCAT(DISTINCT categories.name ORDER BY categories.name SEPARATOR ', ') AS used_categories,
+        GROUP_CONCAT(DISTINCT CASE WHEN transactions.title IS NOT NULL AND transactions.title <> '' THEN transactions.title END ORDER BY transactions.transaction_date SEPARATOR ', ') AS used_titles
     FROM budgets
     LEFT JOIN transactions
         ON transactions.budget_id = budgets.id
         AND MONTH(transactions.transaction_date) = $selectedMonth
         AND YEAR(transactions.transaction_date) = $selectedYear
+    LEFT JOIN categories
+        ON categories.id = transactions.category_id
     WHERE budgets.user_id = $userId
     GROUP BY budgets.id, budgets.title, budgets.monthly_limit
     ORDER BY budgets.title ASC";
@@ -81,16 +100,21 @@ while ($row = mysqli_fetch_assoc($categoryResult)) {
 // Only expenses selected with the weekly budget are counted in its spent amount.
 $weeklyRows = [];
 $weeklySql = "SELECT
+        weekly_budgets.id,
         weekly_budgets.title,
         weekly_budgets.week_start,
         weekly_budgets.week_end,
         weekly_budgets.weekly_limit,
-        SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END) AS spent
+        SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END) AS spent,
+        GROUP_CONCAT(DISTINCT categories.name ORDER BY categories.name SEPARATOR ', ') AS used_categories,
+        GROUP_CONCAT(DISTINCT CASE WHEN transactions.title IS NOT NULL AND transactions.title <> '' THEN transactions.title END ORDER BY transactions.transaction_date SEPARATOR ', ') AS used_titles
     FROM weekly_budgets
     LEFT JOIN transactions
         ON transactions.weekly_budget_id = weekly_budgets.id
         AND transactions.user_id = weekly_budgets.user_id
         AND transactions.transaction_date BETWEEN weekly_budgets.week_start AND weekly_budgets.week_end
+    LEFT JOIN categories
+        ON categories.id = transactions.category_id
     WHERE weekly_budgets.user_id = $userId
     AND MONTH(weekly_budgets.week_start) = $selectedMonth
     AND YEAR(weekly_budgets.week_start) = $selectedYear
@@ -99,6 +123,28 @@ $weeklySql = "SELECT
 $weeklyResult = mysqli_query($conn, $weeklySql);
 while ($row = mysqli_fetch_assoc($weeklyResult)) {
     $weeklyRows[] = $row;
+}
+
+// Transaction details for selected month.
+$transactionRows = [];
+$transactionSql = "SELECT
+        transactions.transaction_date,
+        transactions.title,
+        transactions.type,
+        transactions.amount,
+        categories.name AS category_name,
+        budgets.title AS monthly_budget_name,
+        weekly_budgets.title AS weekly_budget_name
+    FROM transactions
+    LEFT JOIN categories ON categories.id = transactions.category_id
+    LEFT JOIN budgets ON budgets.id = transactions.budget_id
+    LEFT JOIN weekly_budgets ON weekly_budgets.id = transactions.weekly_budget_id
+    WHERE transactions.user_id = $userId
+    AND transactions.transaction_date BETWEEN '$reportStartDate' AND '$reportEndDate'
+    ORDER BY transactions.transaction_date DESC, transactions.id DESC";
+$transactionResult = mysqli_query($conn, $transactionSql);
+while ($row = mysqli_fetch_assoc($transactionResult)) {
+    $transactionRows[] = $row;
 }
 
 function formatRupees($amount)
@@ -134,6 +180,7 @@ function formatRupees($amount)
                 <a href="budgets.php">Monthly Budgets</a>
                 <a href="weekly_budgets.php">Weekly Budgets</a>
                 <a class="active" href="report.php">Monthly Report</a>
+                <a href="history.php">Financial History</a>
             </nav>
 
             <section class="premium-card">
@@ -177,6 +224,10 @@ function formatRupees($amount)
 
                 <div class="receipt-summary-grid">
                     <div class="receipt-box">
+                        <span>Opening Balance</span>
+                        <strong><?= htmlspecialchars(formatRupees($openingBalance)) ?></strong>
+                    </div>
+                    <div class="receipt-box">
                         <span>Total Income</span>
                         <strong><?= htmlspecialchars(formatRupees($totalIncome)) ?></strong>
                     </div>
@@ -185,8 +236,15 @@ function formatRupees($amount)
                         <strong><?= htmlspecialchars(formatRupees($totalExpense)) ?></strong>
                     </div>
                     <div class="receipt-box">
-                        <span>Balance Left</span>
-                        <strong><?= htmlspecialchars(formatRupees($balance)) ?></strong>
+                        <span>Closing Balance</span>
+                        <strong><?= htmlspecialchars(formatRupees($closingBalance)) ?></strong>
+                    </div>
+                </div>
+
+                <div class="receipt-summary-grid report-extra-grid">
+                    <div class="receipt-box">
+                        <span>Month Result</span>
+                        <strong><?= htmlspecialchars(formatRupees($monthBalance)) ?></strong>
                     </div>
                     <div class="receipt-box">
                         <span>Total Entries</span>
@@ -202,25 +260,40 @@ function formatRupees($amount)
                     <?php if (count($budgetRows) === 0): ?>
                         <p class="receipt-empty">No budget data found for this month.</p>
                     <?php else: ?>
-                        <?php foreach ($budgetRows as $budget): ?>
-                            <?php
-                            $limit = (float) $budget['monthly_limit'];
-                            $spent = (float) $budget['spent'];
-                            $remaining = $limit - $spent;
-                            $status = $spent > $limit ? 'Exceeded' : 'Within Limit';
-                            ?>
-                            <div class="receipt-line">
-                                <div>
-                                    <strong><?= htmlspecialchars($budget['title']) ?></strong>
-                                    <span>Limit: <?= htmlspecialchars(formatRupees($limit)) ?></span>
-                                </div>
-                                <div class="receipt-line-values">
-                                    <span>Spent: <?= htmlspecialchars(formatRupees($spent)) ?></span>
-                                    <span>Left: <?= htmlspecialchars(formatRupees($remaining)) ?></span>
-                                    <span class="<?= $spent > $limit ? 'status-exceeded' : 'status-within' ?>"><?= htmlspecialchars($status) ?></span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Budget</th>
+                                        <th>Limit</th>
+                                        <th>Used</th>
+                                        <th>Remaining</th>
+                                        <th>Status</th>
+                                        <th>Used In Categories</th>
+                                        <th>Expense Titles</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($budgetRows as $budget): ?>
+                                        <?php
+                                        $limit = (float) $budget['monthly_limit'];
+                                        $spent = (float) $budget['spent'];
+                                        $remaining = $limit - $spent;
+                                        $status = $spent > $limit ? 'Exceeded' : 'Within Limit';
+                                        ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($budget['title']) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($limit)) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($spent)) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($remaining)) ?></td>
+                                            <td class="<?= $spent > $limit ? 'negative' : 'positive' ?>"><?= htmlspecialchars($status) ?></td>
+                                            <td><?= htmlspecialchars($budget['used_categories'] ?: 'No expense used') ?></td>
+                                            <td><?= htmlspecialchars($budget['used_titles'] ?: 'No expense used') ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -232,16 +305,24 @@ function formatRupees($amount)
                     <?php if (count($categoryRows) === 0): ?>
                         <p class="receipt-empty">No category expense found for this month.</p>
                     <?php else: ?>
-                        <?php foreach ($categoryRows as $category): ?>
-                            <div class="receipt-line">
-                                <div>
-                                    <strong><?= htmlspecialchars($category['name']) ?></strong>
-                                </div>
-                                <div class="receipt-line-values">
-                                    <span><?= htmlspecialchars(formatRupees($category['total_spent'])) ?></span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Total Expense</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($categoryRows as $category): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($category['name']) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($category['total_spent'])) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -253,32 +334,88 @@ function formatRupees($amount)
                     <?php if (count($weeklyRows) === 0): ?>
                         <p class="receipt-empty">No weekly budget found for this month.</p>
                     <?php else: ?>
-                        <?php foreach ($weeklyRows as $weekly): ?>
-                            <?php
-                            $weeklyLimit = (float) $weekly['weekly_limit'];
-                            $weeklySpent = (float) $weekly['spent'];
-                            $weeklyLeft = $weeklyLimit - $weeklySpent;
-                            $weeklyStatus = $weeklySpent > $weeklyLimit ? 'Exceeded' : 'On Track';
-                            ?>
-                            <div class="receipt-line">
-                                <div>
-                                    <strong><?= htmlspecialchars($weekly['title']) ?></strong>
-                                    <span><?= htmlspecialchars(date('d M Y', strtotime($weekly['week_start']))) ?> to <?= htmlspecialchars(date('d M Y', strtotime($weekly['week_end']))) ?></span>
-                                </div>
-                                <div class="receipt-line-values">
-                                    <span>Limit: <?= htmlspecialchars(formatRupees($weeklyLimit)) ?></span>
-                                    <span>Spent: <?= htmlspecialchars(formatRupees($weeklySpent)) ?></span>
-                                    <span>Left: <?= htmlspecialchars(formatRupees($weeklyLeft)) ?></span>
-                                    <span class="<?= $weeklySpent > $weeklyLimit ? 'status-exceeded' : 'status-within' ?>"><?= htmlspecialchars($weeklyStatus) ?></span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Weekly Budget</th>
+                                        <th>Date Range</th>
+                                        <th>Limit</th>
+                                        <th>Used</th>
+                                        <th>Remaining</th>
+                                        <th>Status</th>
+                                        <th>Used In Categories</th>
+                                        <th>Expense Titles</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($weeklyRows as $weekly): ?>
+                                        <?php
+                                        $weeklyLimit = (float) $weekly['weekly_limit'];
+                                        $weeklySpent = (float) $weekly['spent'];
+                                        $weeklyLeft = $weeklyLimit - $weeklySpent;
+                                        $weeklyStatus = $weeklySpent > $weeklyLimit ? 'Exceeded' : 'Within Limit';
+                                        ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($weekly['title']) ?></td>
+                                            <td><?= htmlspecialchars(date('d M Y', strtotime($weekly['week_start']))) ?> to <?= htmlspecialchars(date('d M Y', strtotime($weekly['week_end']))) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($weeklyLimit)) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($weeklySpent)) ?></td>
+                                            <td><?= htmlspecialchars(formatRupees($weeklyLeft)) ?></td>
+                                            <td class="<?= $weeklySpent > $weeklyLimit ? 'negative' : 'positive' ?>"><?= htmlspecialchars($weeklyStatus) ?></td>
+                                            <td><?= htmlspecialchars($weekly['used_categories'] ?: 'No expense used') ?></td>
+                                            <td><?= htmlspecialchars($weekly['used_titles'] ?: 'No expense used') ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="receipt-section">
+                    <div class="receipt-section-header">
+                        <h3>Transaction Details</h3>
+                    </div>
+
+                    <?php if (count($transactionRows) === 0): ?>
+                        <p class="receipt-empty">No transaction found for this month.</p>
+                    <?php else: ?>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Title</th>
+                                        <th>Type</th>
+                                        <th>Category</th>
+                                        <th>Monthly Budget</th>
+                                        <th>Weekly Budget</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($transactionRows as $transaction): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars(date('d M Y', strtotime($transaction['transaction_date']))) ?></td>
+                                            <td><?= htmlspecialchars($transaction['title']) ?></td>
+                                            <td><?= htmlspecialchars(ucfirst($transaction['type'])) ?></td>
+                                            <td><?= htmlspecialchars($transaction['category_name'] ?: 'No Category') ?></td>
+                                            <td><?= htmlspecialchars($transaction['monthly_budget_name'] ?: '-') ?></td>
+                                            <td><?= htmlspecialchars($transaction['weekly_budget_name'] ?: '-') ?></td>
+                                            <td class="<?= $transaction['type'] === 'income' ? 'positive' : 'negative' ?>">
+                                                <?= htmlspecialchars(formatRupees($transaction['amount'])) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
 
                 <div class="receipt-footer">
-                    <p>This receipt shows summary data for <?= htmlspecialchars($reportMonthName . ' ' . $selectedYear) ?> only.</p>
-                    <p>Old records stay saved in the database and can be viewed by choosing another month.</p>
+                    <p>This report shows summary and transaction data for <?= htmlspecialchars($reportMonthName . ' ' . $selectedYear) ?>.</p>
                 </div>
             </section>
         </main>

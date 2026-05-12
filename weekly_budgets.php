@@ -83,6 +83,7 @@ function formatRupees($amount)
                 <a href="budgets.php">Monthly Budgets</a>
                 <a class="active" href="weekly_budgets.php">Weekly Budgets</a>
                 <a href="report.php">Monthly Report</a>
+                <a href="history.php">Financial History</a>
             </nav>
             <section class="premium-card">
                 <p class="eyebrow">Organization Account</p>

@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="info-card">
                     <strong>Login after register</strong>
-                    <span>After registration, the user goes directly to the dashboard.</span>
+                    <span>After registration, the you will goes directly to the dashboard.</span>
                 </div>
             </div>
         </section>

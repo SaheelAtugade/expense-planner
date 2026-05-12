@@ -7,7 +7,8 @@ $userId = (int) $_SESSION['user_id'];
 $currentMonth = date('m');
 $currentYear = date('Y');
 $currentMonthName = date('F');
-$today = date('Y-m-d'); 
+$today = date('Y-m-d');
+$monthStartDate = date('Y-m-01');
 
 // Get user details.
 $userSql = "SELECT full_name FROM users WHERE id = $userId";
@@ -36,9 +37,21 @@ $summarySql .= " WHERE user_id = $userId
 $summaryResult = mysqli_query($conn, $summarySql);
 $summary = mysqli_fetch_assoc($summaryResult);
 
+// Carry forward the old balance from all previous months.
+$openingSql = "SELECT
+        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS old_income,
+        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS old_expense
+     FROM transactions
+     WHERE user_id = $userId
+     AND transaction_date < '$monthStartDate'";
+$openingResult = mysqli_query($conn, $openingSql);
+$openingRow = mysqli_fetch_assoc($openingResult);
+
+$openingBalance = (float) ($openingRow['old_income'] ?? 0) - (float) ($openingRow['old_expense'] ?? 0);
 $totalIncome = (float) ($summary['total_income'] ?? 0);
 $totalExpense = (float) ($summary['total_expense'] ?? 0);
-$moneyLeft = $totalIncome - $totalExpense;
+$monthBalance = $totalIncome - $totalExpense;
+$closingBalance = $openingBalance + $monthBalance;
 
 // Count active weekly budgets for today.
 $activeWeeklySql = "SELECT COUNT(*) AS total_weekly FROM weekly_budgets
@@ -164,6 +177,7 @@ function formatRupees($amount)
                 <a href="budgets.php">Monthly Budgets</a>
                 <a href="weekly_budgets.php">Weekly Budgets</a>
                 <a href="report.php">Monthly Report</a>
+                <a href="history.php">Financial History</a>
             </nav>
 
             <section class="premium-card">
@@ -179,12 +193,12 @@ function formatRupees($amount)
                 <div>
                     <p class="eyebrow"><?= htmlspecialchars($currentMonthName . ' ' . $currentYear) ?> Overview</p>
                     <h2>Monitor monthly budgets and weekly spending plans for <?= htmlspecialchars($currentMonthName . ' ' . $currentYear) ?>.</h2>
-                    <p class="hero-copy">This dashboard shows overview data only. Use separate pages to add transactions, monthly budgets, and weekly budgets.</p>
+                    <!-- <p class="hero-copy">This dashboard shows overview data only. Use separate pages to add transactions, monthly budgets, and weekly budgets.</p> -->
                 </div>
                 <div class="hero-metrics">
                     <div>
-                        <span>Money Left</span>
-                        <strong><?= htmlspecialchars(formatRupees($moneyLeft)) ?></strong>
+                        <span>Opening Balance</span>
+                        <strong><?= htmlspecialchars(formatRupees($openingBalance)) ?></strong>
                     </div>
                     <div>
                         <span>Active Weekly Budgets</span>
@@ -195,21 +209,27 @@ function formatRupees($amount)
 
             <section class="summary-grid">
                 <article class="summary-card blue">
-                    <p>Total Income</p>
-                    <h3><?= htmlspecialchars(formatRupees($totalIncome)) ?></h3>
-                    <span>Money added to your account</span>
+                    <p>Opening Balance</p>
+                    <h3><?= htmlspecialchars(formatRupees($openingBalance)) ?></h3>
+                    <!-- <span>Saved amount carried from old months</span> -->
                 </article>
 
                 <article class="summary-card sky">
+                    <p>Total Income</p>
+                    <h3><?= htmlspecialchars(formatRupees($totalIncome)) ?></h3>
+                    <!-- <span>Money added to your account</span> -->
+                </article>
+
+                <article class="summary-card blue">
                     <p>Total Expense</p>
                     <h3><?= htmlspecialchars(formatRupees($totalExpense)) ?></h3>
-                    <span>Money spent so far</span>
+                    <!-- <span>Money spent so far</span> -->
                 </article>
 
                 <article class="summary-card navy">
-                    <p>Current Balance</p>
-                    <h3><?= htmlspecialchars(formatRupees($moneyLeft)) ?></h3>
-                    <span>Income minus expenses</span>
+                    <p>Closing Balance</p>
+                    <h3><?= htmlspecialchars(formatRupees($closingBalance)) ?></h3>
+                    <!-- <span>Opening balance plus this month result</span> -->
                 </article>
             </section>
 
