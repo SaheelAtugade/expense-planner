@@ -128,7 +128,7 @@ if (isset($_GET['message']) && $_GET['message'] === 'added') {
                 <a href="budgets.php">Monthly Budgets</a>
                 <a href="weekly_budgets.php">Weekly Budgets</a>
                 <a href="report.php">Monthly Report</a>
-                <a href="history.php">Financial History</a>
+                <a href="history.php">Budget Report</a>
             </nav>
 
             <section class="premium-card">

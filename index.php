@@ -112,8 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="demo-box">
                     <strong>Sample login</strong>
-                    <p>Email: <code>admin@budgetplanner.com</code></p>
-                    <p>Password: <code>admin123</code></p>
+                    <p>Email: <code>brightdemo@budgetplanner.com</code></p>
+                    <p>Password: <code>demo123</code></p>
                 </div>
             </div>
         </section>

@@ -667,20 +667,24 @@ td.negative {
 }
 
 .report-filter-form {
-    display: flex;
-    align-items: end;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
-    flex-wrap: wrap;
+}
+
+.simple-month-filter {
+    grid-template-columns: minmax(220px, 320px) auto;
+    align-items: end;
 }
 
 .report-filter-form label {
     display: grid;
     gap: 8px;
-    min-width: 240px;
     font-weight: 600;
 }
 
-.report-filter-form input {
+.report-filter-form input,
+.report-filter-form select {
     width: 100%;
     padding: 14px 16px;
     border: 1px solid rgba(53, 96, 145, 0.18);
@@ -689,6 +693,36 @@ td.negative {
     font: inherit;
     color: var(--text);
     background: #f8fbff;
+    min-height: 54px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.report-filter-form input:focus,
+.report-filter-form select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.12);
+}
+
+.report-filter-form select {
+    padding-right: 42px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--accent-dark) 50%),
+        linear-gradient(135deg, var(--accent-dark) 50%, transparent 50%);
+    background-position:
+        calc(100% - 22px) 23px,
+        calc(100% - 16px) 23px;
+    background-size: 7px 7px, 7px 7px;
+    background-repeat: no-repeat;
+    cursor: pointer;
+}
+
+.report-filter-actions {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .report-filter-form button {
@@ -700,6 +734,25 @@ td.negative {
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+    min-height: 54px;
+}
+
+.secondary-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 18px;
+    min-height: 54px;
+    border-radius: 16px;
+    text-decoration: none;
+    font-weight: 700;
+    color: var(--accent-dark);
+    background: #eef6ff;
+    border: 1px solid rgba(53, 96, 145, 0.16);
+}
+
+.secondary-link:hover {
+    background: #e2efff;
 }
 
 .report-receipt {
@@ -869,7 +922,8 @@ td.negative {
     .hero-metrics,
     .summary-grid,
     .add-form,
-    .receipt-summary-grid {
+    .receipt-summary-grid,
+    .report-filter-form {
         grid-template-columns: 1fr;
         min-width: 0;
     }

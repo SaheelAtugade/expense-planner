@@ -5,24 +5,20 @@ require_once __DIR__ . '/config.php';
 $userId = (int) $_SESSION['user_id'];
 $selectedMonthValue = $_GET['report_month'] ?? date('Y-m');
 
-// If month format is wrong, use current month.
 if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonthValue)) {
     $selectedMonthValue = date('Y-m');
 }
 
-// Split selected value into year and month.
 $selectedYear = (int) substr($selectedMonthValue, 0, 4);
 $selectedMonth = (int) substr($selectedMonthValue, 5, 2);
 $reportMonthName = date('F', strtotime($selectedMonthValue . '-01'));
 $generatedDate = date('d M Y');
 $reportStartDate = $selectedMonthValue . '-01';
-$reportEndDate = date('Y-m-t', strtotime($reportStartDate));
 
 $userSql = "SELECT full_name FROM users WHERE id = $userId";
 $userResult = mysqli_query($conn, $userSql);
 $user = mysqli_fetch_assoc($userResult);
 
-// Carry forward old balance from months before selected month.
 $openingSql = "SELECT
         SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS old_income,
         SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS old_expense
@@ -33,7 +29,6 @@ $openingResult = mysqli_query($conn, $openingSql);
 $openingRow = mysqli_fetch_assoc($openingResult);
 $openingBalance = (float) ($openingRow['old_income'] ?? 0) - (float) ($openingRow['old_expense'] ?? 0);
 
-// Monthly total for selected month.
 $summarySql = "SELECT
         SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS total_income,
         SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS total_expense,
@@ -51,10 +46,8 @@ $monthBalance = $totalIncome - $totalExpense;
 $closingBalance = $openingBalance + $monthBalance;
 $totalEntries = (int) ($summary['total_entries'] ?? 0);
 
-// Budget summary for selected month.
 $budgetRows = [];
 $budgetSql = "SELECT
-        budgets.id,
         budgets.title,
         budgets.monthly_limit,
         SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END) AS spent,
@@ -75,7 +68,6 @@ while ($row = mysqli_fetch_assoc($budgetResult)) {
     $budgetRows[] = $row;
 }
 
-// Category summary for selected month.
 $categoryRows = [];
 $categorySql = "SELECT
         categories.name,
@@ -96,11 +88,8 @@ while ($row = mysqli_fetch_assoc($categoryResult)) {
     }
 }
 
-// Weekly budgets that start in selected month.
-// Only expenses selected with the weekly budget are counted in its spent amount.
 $weeklyRows = [];
 $weeklySql = "SELECT
-        weekly_budgets.id,
         weekly_budgets.title,
         weekly_budgets.week_start,
         weekly_budgets.week_end,
@@ -125,7 +114,6 @@ while ($row = mysqli_fetch_assoc($weeklyResult)) {
     $weeklyRows[] = $row;
 }
 
-// Transaction details for selected month.
 $transactionRows = [];
 $transactionSql = "SELECT
         transactions.transaction_date,
@@ -140,7 +128,8 @@ $transactionSql = "SELECT
     LEFT JOIN budgets ON budgets.id = transactions.budget_id
     LEFT JOIN weekly_budgets ON weekly_budgets.id = transactions.weekly_budget_id
     WHERE transactions.user_id = $userId
-    AND transactions.transaction_date BETWEEN '$reportStartDate' AND '$reportEndDate'
+    AND MONTH(transactions.transaction_date) = $selectedMonth
+    AND YEAR(transactions.transaction_date) = $selectedYear
     ORDER BY transactions.transaction_date DESC, transactions.id DESC";
 $transactionResult = mysqli_query($conn, $transactionSql);
 while ($row = mysqli_fetch_assoc($transactionResult)) {
@@ -180,7 +169,7 @@ function formatRupees($amount)
                 <a href="budgets.php">Monthly Budgets</a>
                 <a href="weekly_budgets.php">Weekly Budgets</a>
                 <a class="active" href="report.php">Monthly Report</a>
-                <a href="history.php">Financial History</a>
+                <a href="history.php">Budget Report</a>
             </nav>
 
             <section class="premium-card">
@@ -200,12 +189,14 @@ function formatRupees($amount)
                     </div>
                 </div>
 
-                <form method="get" class="report-filter-form">
+                <form method="get" class="report-filter-form simple-month-filter">
                     <label>
                         <span>Choose Month</span>
-                        <input type="month" name="report_month" value="<?= htmlspecialchars($selectedMonthValue) ?>">
+                        <input type="month" name="report_month" value="<?= htmlspecialchars($selectedMonthValue) ?>" required>
                     </label>
-                    <button type="submit">View Report</button>
+                    <div class="report-filter-actions">
+                        <button type="submit">View Report</button>
+                    </div>
                 </form>
             </section>
 
@@ -256,7 +247,6 @@ function formatRupees($amount)
                     <div class="receipt-section-header">
                         <h3>Budget Summary</h3>
                     </div>
-
                     <?php if (count($budgetRows) === 0): ?>
                         <p class="receipt-empty">No budget data found for this month.</p>
                     <?php else: ?>
@@ -301,7 +291,6 @@ function formatRupees($amount)
                     <div class="receipt-section-header">
                         <h3>Category Summary</h3>
                     </div>
-
                     <?php if (count($categoryRows) === 0): ?>
                         <p class="receipt-empty">No category expense found for this month.</p>
                     <?php else: ?>
@@ -330,7 +319,6 @@ function formatRupees($amount)
                     <div class="receipt-section-header">
                         <h3>Weekly Budget Summary</h3>
                     </div>
-
                     <?php if (count($weeklyRows) === 0): ?>
                         <p class="receipt-empty">No weekly budget found for this month.</p>
                     <?php else: ?>
@@ -377,7 +365,6 @@ function formatRupees($amount)
                     <div class="receipt-section-header">
                         <h3>Transaction Details</h3>
                     </div>
-
                     <?php if (count($transactionRows) === 0): ?>
                         <p class="receipt-empty">No transaction found for this month.</p>
                     <?php else: ?>
@@ -403,19 +390,13 @@ function formatRupees($amount)
                                             <td><?= htmlspecialchars($transaction['category_name'] ?: 'No Category') ?></td>
                                             <td><?= htmlspecialchars($transaction['monthly_budget_name'] ?: '-') ?></td>
                                             <td><?= htmlspecialchars($transaction['weekly_budget_name'] ?: '-') ?></td>
-                                            <td class="<?= $transaction['type'] === 'income' ? 'positive' : 'negative' ?>">
-                                                <?= htmlspecialchars(formatRupees($transaction['amount'])) ?>
-                                            </td>
+                                            <td class="<?= $transaction['type'] === 'income' ? 'positive' : 'negative' ?>"><?= htmlspecialchars(formatRupees($transaction['amount'])) ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
                     <?php endif; ?>
-                </div>
-
-                <div class="receipt-footer">
-                    <p>This report shows summary and transaction data for <?= htmlspecialchars($reportMonthName . ' ' . $selectedYear) ?>.</p>
                 </div>
             </section>
         </main>
